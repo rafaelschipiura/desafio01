@@ -8,7 +8,7 @@ output:
    pdf_document:
       latex_engine: xelatex
 documentclass: abntex2
-fontsize: 12pt
+fontsize: 10pt
 classoption: 
    - openright
    - twoside
@@ -29,7 +29,7 @@ RNGversion('4.1.2')
 set.seed(1752031105)
 options(digits = 3, scipen=10)
 knitr::opts_chunk$set(dev = 'cairo_pdf', fig.align='center', out.width = '100%')
-library(latex2exp)
+
 library(ggplot2)
 library(hrbrthemes)
 ```
@@ -174,4 +174,6 @@ ggplot(cats, aes(x=Bwt, y=Hwt)) +
 
 # Código
 
-O código pode ser encontrado no seguinte link: https://github.com/rafaelschipiura/desafio01
+O código deste projeto pode ser encontrado no seguinte link:
+
+[https://github.com/rafaelschipiura/desafio01](https://github.com/rafaelschipiura/desafio01)
