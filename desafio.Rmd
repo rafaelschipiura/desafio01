@@ -83,7 +83,7 @@ knn_reg_closure <- function(x, y){
 		return(with(grid, approxfun(x, y)))
 	})
 }
-kas <- seq(from=2, to=nrow(cats), length.out=8)
+kas <- round(seq(from=2, to=nrow(cats), length.out=8))
 for(k in kas){
 	k_dado <- knn_reg_closure(x=cats$Bwt, y=cats$Hwt)
 	mod1 <- k_dado(k=k)
