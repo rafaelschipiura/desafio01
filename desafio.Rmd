@@ -1,0 +1,177 @@
+---
+title: |
+   | CE316 Aprendizado Supervisionado
+   | Desafio 01 - KNN
+author: Rafael Alisson Schipiura
+date: \today 
+output:
+   pdf_document:
+      latex_engine: xelatex
+documentclass: abntex2
+fontsize: 12pt
+classoption: 
+   - openright
+   - twoside
+   - a4paper
+   - brazil
+   - twocolumn 
+header-includes:
+   - \usepackage{fontspec}
+   - \setromanfont{Latin Modern Roman}
+   - \setsansfont{Latin Modern Sans}
+   - \setmonofont[Scale=MatchLowercase]{Latin Modern Mono}
+---
+
+```{r, echo=FALSE, message=FALSE}
+rm(list = ls())
+RNGkind('Mersenne-Twister')
+RNGversion('4.1.2')
+set.seed(1752031105)
+options(digits = 3, scipen=10)
+knitr::opts_chunk$set(dev = 'cairo_pdf', fig.align='center', out.width = '100%')
+library(latex2exp)
+library(ggplot2)
+library(hrbrthemes)
+```
+# Base de dados
+
+Escolhemos a base de dados \texttt{cats} do pacote R \texttt{MASS}, que contém 144 observações de peso corporal e do peso do coração de gatos de ambos os sexos, adultos, com mais de 2kg de peso corporal.
+
+Ela contém as seguintes variáveis:
+
+\begin{itemize}
+   \item \textbf{Sex.} Sexo. Fator com dois níveis:  ‘F’ e  ‘M’. Ignorado nessa análise.
+   \item \textbf{Bwt.} Peso corporal in kilogramas.
+   \item \textbf{Hwt.} Peso do coração em gramas.
+\end{itemize}
+
+Fonte: R. A. Fisher (1947) The analysis of covariance method for the
+     relation between a part and the whole, _Biometrics_ *3*, 65-68.
+
+Referência: Venables, W. N. and Ripley, B. D. (2002) _Modern Applied
+     Statistics with S._ Fourth edition.  Springer.
+
+```{r, echo=FALSE}
+library(MASS)
+data(cats)
+ggplot(cats, aes(x=Bwt, y=Hwt)) +
+	labs(title = "MASS:cats") +
+	geom_point(
+		   color="#53a19b",
+		   alpha=0.5
+	) +
+	theme_ipsum()
+```
+
+# KNN para um dado k
+
+```{r, echo=FALSE}
+knn_reg_closure <- function(x, y){
+	s <- round(100 * sqrt(length(x)))
+	grid <- data.frame(x=seq(from=min(x), to=max(x), length.out=s), y=0)
+	distances <- log(cosh(outer(x, grid$x, FUN="-"))) + 1
+	order_dist <- apply(distances, 2, order)
+	return(function(k){
+		knn <- apply(order_dist, 2, function(z){z[1:k]})
+		knn_dist <- matrix(0, nrow=k, ncol=s)
+		for(i in 1:s){
+			knn_dist[,i] <- distances[knn[,i], i]
+		}
+		weights <- prop.table(1/knn_dist, margin=2)
+		values <- apply(knn, 2, function(z){y[z]})
+		grid$y <- colSums(values * weights)
+		return(with(grid, approxfun(x, y)))
+	})
+}
+kas <- seq(from=2, to=nrow(cats), length.out=3)
+for(k in kas){
+	k_dado <- knn_reg_closure(x=cats$Bwt, y=cats$Hwt)
+	mod1 <- k_dado(k=k)
+	mod2 <- lm(Hwt ~ Bwt, data=cats)
+	lm_intercept <- coef(mod2)[1]
+	lm_slope <- coef(mod2)[2]
+	plot(ggplot(cats, aes(x=Bwt, y=Hwt)) +
+		labs(title = paste("k =", k)) +
+		geom_point(
+			   color="#bdbdbd",
+			   alpha=0.5
+		) +
+		geom_abline(
+			intercept=lm_intercept,
+			slope=lm_slope,
+			color="#9ab851"
+		) +
+		geom_function(
+			fun=mod1,
+			color="#9b59b6"
+		) +
+		theme_ipsum() +
+		theme(
+		      axis.title.x=element_blank(),
+		      axis.title.y=element_blank(),
+		      axis.text.x=element_blank(),
+		      axis.text.y=element_blank(),
+		      axis.ticks.x=element_blank(),
+		      axis.ticks.y=element_blank(),
+		      panel.grid.major = element_blank(),
+		      panel.grid.minor = element_blank()
+		)
+	)
+}
+```
+
+# k por validação cruzada
+
+```{r, echo=FALSE}
+knn <- function(formula, data){
+	response <- all.vars(formula)[attr(terms(formula), "response")]
+	covar <- attr(terms(formula), "term.labels")
+	n <- nrow(data)
+	val_j <- sample(1:n, size=0.2*n)
+	t_x <- data[-val_j, covar]
+	t_y <- data[-val_j, response]
+	test_k <- knn_reg_closure(x=t_x, y=t_y)
+	kas <- 2:length(t_x)
+	minscore <- .Machine$double.xmax
+	fun_c <- NULL
+	for(j in 1:length(kas)){
+		candidate <- test_k(kas[j])
+		score <- mean((data[,response] - candidate(data[,covar]))^2)
+		if (score < minscore) {
+			minscore <- score
+			fun_c <- candidate
+		}
+	}
+	return(fun_c)
+}
+mod3 <- knn(Hwt ~ Bwt, data=cats)
+ggplot(cats, aes(x=Bwt, y=Hwt)) +
+	geom_point(
+		   color="#bdbdbd",
+		   alpha=0.5
+	) +
+	geom_abline(
+		intercept=lm_intercept,
+		slope=lm_slope,
+		color="#9ab851"
+	) +
+	geom_function(
+		fun=mod3,
+		color="#9b59b6"
+	) +
+	theme_ipsum() +
+	theme(
+	      axis.title.x=element_blank(),
+	      axis.title.y=element_blank(),
+	      axis.text.x=element_blank(),
+	      axis.text.y=element_blank(),
+	      axis.ticks.x=element_blank(),
+	      axis.ticks.y=element_blank(),
+	      panel.grid.major = element_blank(),
+	      panel.grid.minor = element_blank()
+	)
+```
+
+# Código
+
+O código pode ser encontrado no seguinte link:
